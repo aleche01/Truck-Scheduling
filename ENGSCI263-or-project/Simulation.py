@@ -3,6 +3,9 @@ from Solve_LP import *
 import pandas as pd
 from fitter import Fitter
 import matplotlib.pyplot as plt
+import math
+import random
+import time
 
 def traffic():
     # Read in the distances and times between each store into a double dictionary
@@ -20,9 +23,9 @@ def traffic():
         times = line[1:]
 
         # Overall variation on Weekdays
-        big_var = np.random.uniform(low=1.3, high = 1.5)
+        big_var = np.random.uniform(low=1.31, high = 1.51)
         # Overall variation on Saturdays
-        big_var_sat = np.random.uniform(low=1.1, high = 1.3)
+        big_var_sat = np.random.uniform(low=1.11, high = 1.31)
         # Individual variation (random variation)
         small_var = np.random.uniform(low = 0.85, high = 1.15, size = (42,))
 
@@ -113,6 +116,10 @@ def bonus_truck(route_paths, best_routes, routes_input, Demand, Times, regions,N
             Lists the routes in the form 'Route_n' as LpVariables
         routes_input : array-like
             Stores the nodes visited by each route and the cost of each
+        Demand : dict
+            The demand at each store, with the stores as keys
+        Times : array-like
+            The time to reach each store
         regions : array-like
             Stores the clusters the nodes are in
         North_Closed : bool
@@ -126,6 +133,8 @@ def bonus_truck(route_paths, best_routes, routes_input, Demand, Times, regions,N
             Stores the nodes visited by each route and the cost of each
         no_unfulfilled : int
             The number of nodes our reserve trucks must visit
+        no_routes : int
+            The number of routes our trucks must visit        
 
         Notes:
         ------
@@ -171,7 +180,7 @@ def bonus_truck(route_paths, best_routes, routes_input, Demand, Times, regions,N
             # best_routes and routes_paths should be of the same length
             i += 1
 
-        return best_routes, routes_input, no_unfulfilled
+        return best_routes, routes_input, no_unfulfilled, len(best_routes)
 
     # key for taking second element for store name-demand pair
     def takeSecond(elem):
@@ -313,7 +322,7 @@ def bonus_truck(route_paths, best_routes, routes_input, Demand, Times, regions,N
         # best_routes and routes_paths should be of the same length
         i += 1
     
-    return best_routes, routes_input, no_unfulfilled
+    return best_routes, routes_input, no_unfulfilled, len(best_routes)
 
 
 def find_closest_distr(store, regions):
@@ -378,11 +387,12 @@ def calculate_cost(best_routes, routes_input):
         for i in range(50,len(best_routes)): # cost for routes after 50
             row_no = int(best_routes[i].name[6:]) # get route number
             time = routes_input[row_no,-2]
-            new_cost += (time/14400)*1500
+            new_cost += math.ceil((time/14400))*1500
     return new_cost
 
 
 if __name__ == "__main__":
+    time1 = time.time()
     regions = region_divide()
     routes_input = all_routes(regions, North_Closed=False, Saturday=False)
     best_routes, cost=solve_lp(routes_input, Saturday=False)
@@ -395,17 +405,35 @@ if __name__ == "__main__":
 
 
     # Simulation code
-    costs = []
-    costs_sat = []
+    costs = [[], [], [], []]
+    difcosts = []
 
-    for i in range(10000):
+    wkday_costs_open = []
+    wkday_costs_closed = []
+    
+    difcosts_sat = []
+
+    # count no. of trucks we need on weekdays
+    wkday_no_routes_nthopen = []
+    wkday_no_routes_nthclosed = []
+
+    for i in range(1000):
         print("Simulation", i)
         wkdayTimes, saturdayTimes = traffic()
         d = demand()
 
-        best_routesi, routes_inputi, unfulfilled = bonus_truck(route_paths, best_routes, routes_input, d, wkdayTimes, regions)
-        best_routesj, routes_inputj, unfulfilled = bonus_truck(route_paths2, best_routes2, routes_input2, d, wkdayTimes, regions, North_Closed = True)
-        costs.append(calculate_cost(best_routesj, routes_inputj) - calculate_cost(best_routesi, routes_inputi))
+        best_routesi, routes_inputi, unfulfilled, no_routesi = bonus_truck(route_paths, best_routes, routes_input, d, wkdayTimes, regions)
+        best_routesj, routes_inputj, unfulfilled, no_routesj = bonus_truck(route_paths2, best_routes2, routes_input2, d, wkdayTimes, regions, North_Closed = True)
+        difcosts.append(calculate_cost(best_routesj, routes_inputj) - calculate_cost(best_routesi, routes_inputi))
+        
+        wkday_costs_closed.append(calculate_cost(best_routesj, routes_inputj))
+        wkday_costs_open.append(calculate_cost(best_routesi, routes_inputi))
+        
+        wkday_no_routes_nthopen.append(no_routesi)
+        wkday_no_routes_nthclosed.append(no_routesj)
+
+        costs[0].append(calculate_cost(best_routesi, routes_inputi))
+        costs[1].append(calculate_cost(best_routesj, routes_inputj))
 
     regions = region_divide()
     routes_input = all_routes(regions, North_Closed=False, Saturday=True)
@@ -414,23 +442,194 @@ if __name__ == "__main__":
 
     regions = region_divide()
     routes_input2 = all_routes(regions, North_Closed=True, Saturday=True)
-    best_routes2, cost2=solve_lp(routes_input, Saturday=True)
-    route_paths2 = get_path(best_routes, routes_input)
+    best_routes2, cost2=solve_lp(routes_input2, Saturday=True)
+    route_paths2 = get_path(best_routes, routes_input2)
 
-    for i in range(10000):
+    # count no of trucks needed on Saturdays
+    saturday_no_routes_nthopen = []
+    saturday_no_routes_nthclosed = []
+
+    saturday_costs_open = []
+    saturday_costs_closed = []
+
+    for i in range(1000):
         print("Simulation", i)
         wkdayTimes, saturdayTimes = traffic()
         d = demand(Saturday = True)
 
-        best_routesi, routes_inputi, unfulfilled = bonus_truck(route_paths, best_routes, routes_input, d, saturdayTimes, regions)
-        best_routesj, routes_inputj, unfulfilled = bonus_truck(route_paths2, best_routes2, routes_input2, d, saturdayTimes, regions, North_Closed = True)
-        costs_sat.append(calculate_cost(best_routesj, routes_inputj) - calculate_cost(best_routesi, routes_inputi))
+        best_routesi, routes_inputi, unfulfilled, no_routesi = bonus_truck(route_paths, best_routes, routes_input, d, saturdayTimes, regions)
+        best_routesj, routes_inputj, unfulfilled, no_routesj = bonus_truck(route_paths2, best_routes2, routes_input2, d, saturdayTimes, regions, North_Closed = True)
+        difcosts_sat.append(calculate_cost(best_routesj, routes_inputj) - calculate_cost(best_routesi, routes_inputi))
 
-    savings = [20 * costs[i] + 4 * costs_sat[i] for i in range(10000)]
+        saturday_costs_closed.append(calculate_cost(best_routesj, routes_inputj))
+        saturday_costs_open.append(calculate_cost(best_routesi, routes_inputi))
+
+        saturday_no_routes_nthopen.append(no_routesi)
+        saturday_no_routes_nthclosed.append(no_routesj)
+
+        costs[2].append(calculate_cost(best_routesi, routes_inputi))
+        costs[3].append(calculate_cost(best_routesj, routes_inputj))
+
+    # SAVINGS PLOT
+    savings = []
+    for a in range(1000):
+        saving = 0
+        for i in range(20):
+            saving += random.choice(difcosts)
+
+        for i in range(4):
+            saving += random.choice(difcosts_sat)
+        savings.append(saving)
     savings.sort()
 
-    plt.hist(savings, 500)
+    plt.hist(savings, 50)
+    plt.xlabel("Costs ($)")
+    plt.ylabel("Frequency out of 1000")
+    # Either display the plot, or save it
+    if False:
+        plt.show()
+    else:
+        plt.savefig('savings.png',dpi=300)
 
-    print(savings[500], "to", savings[-500])
+    # 90% percentile interval
+    print("95% percentiles:\n\n")
+    print("Extra cost per month:")
+    print("$",savings[50], "to $", savings[-50], "\n")
 
-    plt.show()
+    # NORTH OPEN PLOT
+    plt.clf()
+    costs_open = []
+    for a in range(1000):
+        cost = 0
+        for i in range(20):
+            cost += random.choice(wkday_costs_open)
+
+        for i in range(4):
+            cost += random.choice(saturday_costs_open)
+        costs_open.append(cost)
+    costs_open.sort()
+
+    plt.hist(costs_open, 50)
+    plt.xlabel("Costs ($)")
+    plt.ylabel("Frequency out of 1000")
+    # Either display the plot, or save it
+    if False:
+        plt.show()
+    else:
+        plt.savefig('costs_open.png',dpi=300)
+
+    # 90% percentile interval
+    print("95% percentiles:\n\n")
+    print("Cost per month with North open:")
+    print("$",costs_open[50], "to $", costs_open[-50], "\n")
+
+
+    # NORTH CLOSED PLOT
+    plt.clf()
+    costs_closed = []
+    for a in range(1000):
+        cost = 0
+        for i in range(20):
+            cost += random.choice(wkday_costs_closed)
+
+        for i in range(4):
+            cost += random.choice(saturday_costs_closed)
+        costs_closed.append(cost)
+    costs_closed.sort()
+
+    plt.hist(costs_closed, 50)
+    plt.xlabel("Costs ($)")
+    plt.ylabel("Frequency out of 1000")
+    # Either display the plot, or save it
+    if False:
+        plt.show()
+    else:
+        plt.savefig('costs_closed.png',dpi=300)
+
+    # 90% percentile interval
+    print("95% percentiles:\n\n")
+    print("Cost per month with North closed:")
+    print("$",costs_closed[50], "to $", costs_closed[-50], "\n")
+
+
+    # TRUCKS PLOT
+    # under each scenario, how many trucks will we need ?
+    fig, ax = plt.subplots(nrows=2, ncols=2)
+
+    # plots
+    ax[0,0].hist(wkday_no_routes_nthopen,50)
+    ax[0,1].hist(wkday_no_routes_nthclosed,50)
+    ax[1,0].hist(saturday_no_routes_nthopen,50)
+    ax[1,1].hist(saturday_no_routes_nthclosed,50)
+
+    # Titles
+    ax[0,0].title.set_text("Weekdays - North Open")
+    ax[0,1].title.set_text("Weekdays - North Closed")
+    ax[1,0].title.set_text("Saturdays - North Open")
+    ax[1,1].title.set_text("Saturdays - North Closed")
+
+    # Axis labels
+    ax[0,0].set_ylabel('Frequency out of 1000')
+    ax[0,0].set_xlabel('Number of trucks')
+    ax[0,1].set_ylabel('Frequency out of 1000')
+    ax[0,1].set_xlabel('Number of trucks')
+    ax[1,0].set_ylabel('Frequency out of 1000')
+    ax[1,0].set_xlabel('Number of trucks')
+    ax[1,1].set_ylabel('Frequency out of 1000')
+    ax[1,1].set_xlabel('Number of trucks')
+
+    # Either display the plot, or save it
+    if False:
+        plt.show()
+    else:
+        plt.savefig('trucks.png',dpi=300)
+
+    # COSTS PLOT
+    fig, ax = plt.subplots(nrows=2, ncols=2)
+
+    # plots
+    ax[0,0].hist(costs[0],50)
+    ax[0,1].hist(costs[1],50)
+    ax[1,0].hist(costs[2],50)
+    ax[1,1].hist(costs[3],50)
+
+    # Titles
+    ax[0,0].title.set_text("Weekdays - North Open")
+    ax[0,1].title.set_text("Weekdays - North Closed")
+    ax[1,0].title.set_text("Saturdays - North Open")
+    ax[1,1].title.set_text("Saturdays - North Closed")
+
+    # Axis labels
+    ax[0,0].set_ylabel('Frequency out of 1000')
+    ax[0,0].set_xlabel('Cost per day ($)')
+    ax[0,1].set_ylabel('Frequency out of 1000')
+    ax[0,1].set_xlabel('Cost per day ($)')
+    ax[1,0].set_ylabel('Frequency out of 1000')
+    ax[1,0].set_xlabel('Cost per day ($)')
+    ax[1,1].set_ylabel('Frequency out of 1000')
+    ax[1,1].set_xlabel('Cost per day ($)')
+
+    # Either display the plot, or save it
+    if False:
+        plt.show()
+    else:
+        plt.savefig('costs.png',dpi=300)
+
+    # 90% percentile interval
+    costs[0].sort()
+    costs[1].sort()
+    costs[2].sort()
+    costs[3].sort()
+
+
+    print("Costs per day:")
+    print("Weekday with North Open")
+    print("$", costs[0][50], "to $", costs[0][-50], "\n")
+    print("Weekday with North Closed")
+    print("$", costs[1][50], "to $", costs[1][-50], "\n")
+    print("Saturday with North Open")
+    print("$", costs[2][50], "to $", costs[2][-50], "\n")
+    print("Saturday with North Closed")
+    print("$", costs[3][50], "to $", costs[3][-50], "\n")
+
+    print(time.time() - time1)

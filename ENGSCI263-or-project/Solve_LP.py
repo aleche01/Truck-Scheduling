@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd 
+import time
 from pulp import *
 from Generate_Routes import *
 
@@ -77,7 +78,7 @@ def solve_lp(routes_input, Saturday=False):
     match_rhs={}
     for i in range(np.size(routes_input,1)):
         if Saturday:
-            if i < 21:
+            if i < 20:
                 match_rhs.update({"Node_{:d}".format(i): 0})
             else:
                 match_rhs.update({"Node_{:d}".format(i): 1})
@@ -137,7 +138,7 @@ def solve_lp(routes_input, Saturday=False):
                 prob += lpSum([NodeRHS[j][k]*route_vars[k] for k in Routes]) == match_rhs[i]
 
     # hard-coded GUB for total number of trucks
-    prob += lpSum([route_vars[i] for i in Routes]) <= 50 # cannot have more than 50 routes chosen
+    prob += lpSum([route_vars[i] for i in Routes]) <= 25 # cannot have more than 25 routes chosen
 
     prob.solve()
 
@@ -216,11 +217,14 @@ def get_path(best_routes, routes_input):
 
 
 if __name__ == "__main__":
+    time1 = time.time()
 
     regions = region_divide()
-    routes_input = all_routes(regions, North_Closed=False, Saturday=False)
-    best_routes, cost=solve_lp(routes_input, Saturday=False)
+    routes_input = all_routes(regions, North_Closed=True, Saturday=True)
+    best_routes, cost=solve_lp(routes_input, Saturday=True)
     print(best_routes, len(best_routes),cost)
+    time2 = time.time()
+    print(time2-time1)
     #route_paths = get_path(best_routes, routes_input)
     #print(route_paths) 
 

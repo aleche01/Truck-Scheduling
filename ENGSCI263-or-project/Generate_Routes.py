@@ -221,23 +221,22 @@ def all_routes(regions, North_Closed = False, Saturday = False):
 
     '''
     # Load in demands and times
-    Demand, _, _, _, _, Times = load_data()
+    Demand, _, _, _, _, Times = load_data(Saturday=Saturday)
 
     # check for no demand stores (ie Noel Leeming on Sat)
     for store in Demand:
         if Demand[store] == 0:
             # can't use .remove directly on nested list
-            for region in regions:
-                try:
-                    region.remove(store)
-                except ValueError:
-                    pass
+            for i in range(len(regions)):
+                if store in regions[i]:
+                    regions[i].remove(store)
 
-
+    print(regions)
 
     # set up the all_routes matrix
     all_routes = []
     times = []
+    random.seed(1896)
 
     # get all permutations of subset with length 1, 2, 3, nodes etc
     for i in range(len(regions)):
@@ -295,5 +294,3 @@ def all_routes(regions, North_Closed = False, Saturday = False):
         Grid[i][40] = times[i]
 
     return Grid
-
-

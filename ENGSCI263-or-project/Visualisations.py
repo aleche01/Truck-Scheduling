@@ -33,21 +33,21 @@ client = ors.Client(key=ORSkey)
 
 #############################
 #ADDING ROUTES
-#regions = region_divide()
-#routes_input = all_routes(regions, North_Closed=False, Saturday=False)
-#best_routes, cost = solve_lp(routes_input, Saturday=False)
-wkdayTimes, saturdayTimes = traffic()
-d = demand()
 regions = region_divide()
-routes_input_I = all_routes(regions, North_Closed=False, Saturday=False)
-best_routes_I, cost=solve_lp(routes_input_I, Saturday=False)
-route_paths = get_path(best_routes_I, routes_input_I)
-best_routes, routes_input, unfulfilled = bonus_truck(route_paths, best_routes_I, routes_input_I, d, wkdayTimes, regions, North_Closed=False)
+routes_input = all_routes(regions, North_Closed=False, Saturday=False)
+best_routes, cost = solve_lp(routes_input, Saturday=False)
+#wkdayTimes, saturdayTimes = traffic()
+#d = demand()
+#regions = region_divide()
+#routes_input_I = all_routes(regions, North_Closed=False, Saturday=False)
+#best_routes_I, cost=solve_lp(routes_input_I, Saturday=False)
+#route_paths = get_path(best_routes_I, routes_input_I)
+#best_routes, routes_input, unfulfilled = bonus_truck(route_paths, best_routes_I, routes_input_I, d, wkdayTimes, regions, North_Closed=False)
 
-real_route_paths = get_path(best_routes, routes_input)
+#real_route_paths = get_path(best_routes, routes_input)
 
 #load data
-Demand, Longitude, Latitude, Location, Distances, Times = load_data(Saturday = False)
+Demand, Longitude, Latitude, Location, Distances, Times = load_data(Saturday = True)
 
 #indexing of data
 Ordered_Longitude = []
@@ -69,11 +69,11 @@ for i in range(len(Ordered_Longitude)):
 
 #color each route differently
 w = 0
-#colors = ['red', 'orange', 'yellow', 'green', 'blue', 'purple', 'black', 'darkred', 'white', 'gold', 'brown', 'darkgreen', 'magenta', 'silver', 'teal']
+colors = ['red', 'orange', 'yellow', 'green', 'blue', 'purple', 'black', 'darkred', 'white', 'gold', 'brown', 'darkgreen', 'magenta', 'silver', 'teal', 'lightgreen']
 
 #colors = ['black']*len(best_routes)
-colors = ['black']*(len(best_routes)-unfulfilled)
-colors.extend(['red']*unfulfilled)
+#colors = ['black']*(len(best_routes)-unfulfilled)
+#colors.extend(['red']*unfulfilled)
 
 for routes in best_routes:
     print(routes)
